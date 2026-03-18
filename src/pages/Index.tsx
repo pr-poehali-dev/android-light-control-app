@@ -80,7 +80,7 @@ const INITIAL_TIMERS: Timer[] = [
 
 const ALL_DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-type Tab = "home" | "scenes" | "timers";
+type Tab = "home" | "scenes" | "timers" | "settings";
 
 export default function Index() {
   const [lamps, setLamps] = useState<Lamp[]>(INITIAL_LAMPS);
@@ -89,6 +89,9 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [activeScene, setActiveScene] = useState<number | null>(null);
   const [showAddTimer, setShowAddTimer] = useState(false);
+  const [editingLamp, setEditingLamp] = useState<Lamp | null>(null);
+  const [showAddLamp, setShowAddLamp] = useState(false);
+  const [newLamp, setNewLamp] = useState<{ name: string; room: string; protocol: Protocol }>({ name: "", room: "", protocol: "Wi-Fi" });
 
   const toggleLamp = (id: number) => {
     setLamps(prev => prev.map(l => l.id === id ? { ...l, on: !l.on } : l));
@@ -110,6 +113,23 @@ export default function Index() {
 
   const toggleTimer = (id: number) => {
     setTimers(prev => prev.map(t => t.id === id ? { ...t, active: !t.active } : t));
+  };
+
+  const addLamp = () => {
+    if (!newLamp.name.trim() || !newLamp.room.trim()) return;
+    setLamps(prev => [...prev, { ...newLamp, id: Date.now(), on: false, brightness: 80 }]);
+    setNewLamp({ name: "", room: "", protocol: "Wi-Fi" });
+    setShowAddLamp(false);
+  };
+
+  const deleteLamp = (id: number) => {
+    setLamps(prev => prev.filter(l => l.id !== id));
+    setEditingLamp(null);
+  };
+
+  const saveEditLamp = (updated: Lamp) => {
+    setLamps(prev => prev.map(l => l.id === updated.id ? updated : l));
+    setEditingLamp(null);
   };
 
   const onCount = lamps.filter(l => l.on).length;
@@ -365,6 +385,194 @@ export default function Index() {
               </div>
             </div>
           )}
+
+          {/* SETTINGS */}
+          {activeTab === "settings" && (
+            <div className="px-4 animate-fade-in">
+              <div className="mt-4 mb-6 flex items-end justify-between">
+                <div>
+                  <p className="text-xs mb-1" style={{ color: "var(--app-text-dim)" }}>Устройства</p>
+                  <h1 className="text-2xl font-bold">Настройки</h1>
+                </div>
+                <button
+                  onClick={() => { setShowAddLamp(!showAddLamp); setEditingLamp(null); }}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90"
+                  style={{
+                    background: showAddLamp ? "rgba(245,200,66,0.15)" : "var(--app-surface)",
+                    border: `1px solid ${showAddLamp ? "rgba(245,200,66,0.3)" : "var(--app-border)"}`,
+                  }}
+                >
+                  <Icon name={showAddLamp ? "X" : "Plus"} size={16} style={{ color: "var(--app-warm)" }} />
+                </button>
+              </div>
+
+              {/* Add lamp form */}
+              {showAddLamp && (
+                <div className="rounded-2xl p-4 mb-4 animate-scale-in"
+                  style={{ background: "var(--app-surface)", border: "1px solid rgba(245,200,66,0.2)" }}>
+                  <p className="text-sm font-semibold mb-3">Новая лампа</p>
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <label className="text-xs mb-1.5 block" style={{ color: "var(--app-text-dim)" }}>Название</label>
+                      <input
+                        type="text"
+                        placeholder="Напр. Торшер"
+                        value={newLamp.name}
+                        onChange={e => setNewLamp(p => ({ ...p, name: e.target.value }))}
+                        className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                        style={{ background: "var(--app-surface-2)", border: "1px solid var(--app-border)", color: "var(--app-text)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs mb-1.5 block" style={{ color: "var(--app-text-dim)" }}>Комната</label>
+                      <input
+                        type="text"
+                        placeholder="Напр. Гостиная"
+                        value={newLamp.room}
+                        onChange={e => setNewLamp(p => ({ ...p, room: e.target.value }))}
+                        className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                        style={{ background: "var(--app-surface-2)", border: "1px solid var(--app-border)", color: "var(--app-text)" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs mb-1.5 block" style={{ color: "var(--app-text-dim)" }}>Протокол</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(["Wi-Fi", "Zigbee", "Z-Wave", "Bluetooth"] as Protocol[]).map(p => (
+                          <button key={p} onClick={() => setNewLamp(prev => ({ ...prev, protocol: p }))}
+                            className="py-2 rounded-xl text-sm font-medium transition-all"
+                            style={{
+                              background: newLamp.protocol === p ? "rgba(245,200,66,0.12)" : "var(--app-surface-2)",
+                              border: `1px solid ${newLamp.protocol === p ? "rgba(245,200,66,0.3)" : "var(--app-border)"}`,
+                              color: newLamp.protocol === p ? "var(--app-warm)" : "var(--app-text-dim)",
+                            }}>
+                            <span className="inline-block w-1.5 h-1.5 rounded-full mr-2" style={{ background: PROTOCOL_COLORS[p], verticalAlign: "middle" }} />
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button onClick={addLamp}
+                      className="w-full py-2.5 rounded-xl text-sm font-semibold mt-1"
+                      style={{ background: newLamp.name && newLamp.room ? "var(--app-warm)" : "var(--app-surface-2)", color: newLamp.name && newLamp.room ? "#0a0a0f" : "var(--app-text-dim)" }}>
+                      Добавить
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Edit lamp modal */}
+              {editingLamp && (
+                <div className="rounded-2xl p-4 mb-4 animate-scale-in"
+                  style={{ background: "var(--app-surface)", border: "1px solid rgba(74,158,255,0.2)" }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-semibold">Редактировать</p>
+                    <button onClick={() => setEditingLamp(null)}>
+                      <Icon name="X" size={16} style={{ color: "var(--app-text-dim)" }} />
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <label className="text-xs mb-1.5 block" style={{ color: "var(--app-text-dim)" }}>Название</label>
+                      <input type="text" value={editingLamp.name}
+                        onChange={e => setEditingLamp(p => p ? { ...p, name: e.target.value } : p)}
+                        className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                        style={{ background: "var(--app-surface-2)", border: "1px solid var(--app-border)", color: "var(--app-text)" }} />
+                    </div>
+                    <div>
+                      <label className="text-xs mb-1.5 block" style={{ color: "var(--app-text-dim)" }}>Комната</label>
+                      <input type="text" value={editingLamp.room}
+                        onChange={e => setEditingLamp(p => p ? { ...p, room: e.target.value } : p)}
+                        className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+                        style={{ background: "var(--app-surface-2)", border: "1px solid var(--app-border)", color: "var(--app-text)" }} />
+                    </div>
+                    <div>
+                      <label className="text-xs mb-1.5 block" style={{ color: "var(--app-text-dim)" }}>Протокол</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(["Wi-Fi", "Zigbee", "Z-Wave", "Bluetooth"] as Protocol[]).map(p => (
+                          <button key={p} onClick={() => setEditingLamp(prev => prev ? { ...prev, protocol: p } : prev)}
+                            className="py-2 rounded-xl text-sm font-medium transition-all"
+                            style={{
+                              background: editingLamp.protocol === p ? "rgba(245,200,66,0.12)" : "var(--app-surface-2)",
+                              border: `1px solid ${editingLamp.protocol === p ? "rgba(245,200,66,0.3)" : "var(--app-border)"}`,
+                              color: editingLamp.protocol === p ? "var(--app-warm)" : "var(--app-text-dim)",
+                            }}>
+                            <span className="inline-block w-1.5 h-1.5 rounded-full mr-2" style={{ background: PROTOCOL_COLORS[p], verticalAlign: "middle" }} />
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-1">
+                      <button onClick={() => deleteLamp(editingLamp.id)}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-medium"
+                        style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)", color: "#f87171" }}>
+                        Удалить
+                      </button>
+                      <button onClick={() => saveEditLamp(editingLamp)}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                        style={{ background: "var(--app-warm)", color: "#0a0a0f" }}>
+                        Сохранить
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Lamps list */}
+              {rooms.map(room => (
+                <div key={room} className="mb-5">
+                  <p className="text-xs font-medium mb-3 uppercase tracking-widest" style={{ color: "var(--app-text-dim)" }}>{room}</p>
+                  <div className="flex flex-col gap-2">
+                    {lamps.filter(l => l.room === room).map(lamp => (
+                      <button key={lamp.id} onClick={() => { setEditingLamp(lamp); setShowAddLamp(false); }}
+                        className="flex items-center justify-between rounded-xl px-4 py-3 w-full text-left transition-all"
+                        style={{
+                          background: editingLamp?.id === lamp.id ? "rgba(74,158,255,0.08)" : "var(--app-surface)",
+                          border: `1px solid ${editingLamp?.id === lamp.id ? "rgba(74,158,255,0.25)" : "var(--app-border)"}`,
+                        }}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                            style={{ background: lamp.on ? "rgba(245,200,66,0.1)" : "var(--app-surface-2)" }}>
+                            <Icon name="Lightbulb" size={16} style={{ color: lamp.on ? "var(--app-warm)" : "var(--app-text-dim)" }} />
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium">{lamp.name}</div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <div className="w-1.5 h-1.5 rounded-full" style={{ background: PROTOCOL_COLORS[lamp.protocol] }} />
+                              <span className="text-xs" style={{ color: "var(--app-text-dim)" }}>{lamp.protocol}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <Icon name="ChevronRight" size={16} style={{ color: "var(--app-text-dim)" }} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {/* Info block */}
+              <div className="rounded-2xl p-4 mb-2"
+                style={{ background: "var(--app-surface)", border: "1px solid var(--app-border)" }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Icon name="Info" size={15} style={{ color: "var(--app-accent)" }} />
+                  <span className="text-sm font-medium">Поддерживаемые протоколы</span>
+                </div>
+                {(["Wi-Fi", "Zigbee", "Z-Wave", "Bluetooth"] as Protocol[]).map(p => (
+                  <div key={p} className="flex items-center justify-between py-2"
+                    style={{ borderBottom: "1px solid var(--app-border)" }}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ background: PROTOCOL_COLORS[p] }} />
+                      <span className="text-sm">{p}</span>
+                    </div>
+                    <span className="text-xs" style={{ color: "var(--app-text-dim)" }}>
+                      {lamps.filter(l => l.protocol === p).length} ламп
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Bottom nav */}
@@ -375,6 +583,7 @@ export default function Index() {
               { id: "home" as Tab, icon: "Home", label: "Дом" },
               { id: "scenes" as Tab, icon: "Sparkles", label: "Сцены" },
               { id: "timers" as Tab, icon: "Clock", label: "Таймер" },
+              { id: "settings" as Tab, icon: "Settings2", label: "Устройства" },
             ]).map(tab => (
               <button
                 key={tab.id}
